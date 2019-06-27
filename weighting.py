@@ -1,3 +1,4 @@
+# alternative 3-hour intervals at the end of script
 import os
 import pandas as pd ; import numpy as np
 import datetime as dt
@@ -29,7 +30,7 @@ for index, (t,g) in enumerate(zip(T,G)):
 	elif t==35 or t==40 or t==45:
 		g=45
 	elif t==50 or t==55 or t==00:
-		g=00
+		g=60
 	G[index] = g
 
 BCH_med.insert(len(BCH_med.columns), 'group', G)
@@ -38,24 +39,64 @@ BCH_med.insert(len(BCH_med.columns), 'hour', H)
 
 ###########################################################################################################
 ###
-### Compute different averages of our proxys within these intervals:  Equally-Weighted
-###		Size-Weighted, Time-Weighted
+### Compute different averages of our proxys within these intervals:  Equally-Weighted (2 proxies)
+###		Size-Weighted (3 proxies) and Time-Weighted (1 proxy)
 ###
 ############################################################################################################
-# EQUALLY WEIGHTED
+# EQUALLY WEIGHTED (simple & standardized)
 #############################################################################################################
-#Standadize wrt to intra group MEAN and ST_DEV
-base_EW = BCH_med[["PQS","DEPTH","group","hour"]]
-EW = base_EW.groupby(["hour","group"]).transform(lambda x: (x - x.mean()) / x.std())
+
+#EW - simple
+EW =  BCH_med.groupby(["hour","group"]).mean()
+EW.reset_index(level=0, inplace=True)
+EW.reset_index(level=0, inplace=True)
+EW= EW[["hour","group","PQS","DEPTH"]]
 EW = EW.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
+
+
+# #EW - standardized wrt to intra group MEAN and ST_DEV
+# # 1st : standardize
+# EW_stdz = BCH_med.groupby(["hour","group"]).transform(lambda x: (x - x.mean()) / x.std())
+# EW_stdz.insert(0, "hour", H)
+# EW_stdz.insert(1, "group", G)
+
+# EW_stdz = EW_stdz.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
+
+
+#############################################################################################################
+### SIZE WEIGHTED (simple & standardized) 
+#############################################################################################################
+
+# SW - simple
+# Define a lambda function to compute the weighted mean:
+wm = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
+f = {'PQS': {'weighted_mean' : wm}, 'PES': {'weighted_mean': wm}, 'PTS': {'weighted_mean': wm}}
+SW = BCH_med.groupby(["hour","group"]).agg(f)
+SW.reset_index(level=0, inplace=True)
+SW.reset_index(level=0, inplace=True)
+SW = SW[["hour", "group", "PQS", "PES", "PTS"]]
+SW = SW.rename(columns={"PQS":"SWPQS", "PES":"SWPES", "PTS":"SWPTS"})
+
+
+
+#############################################################################################################
+### TIME WEIGHTED (simple & standardized) 
+#############################################################################################################
+
+# TW - simple
+# Define a lambda function to compute the weighted mean:
+wm = lambda x: np.average(x, weights=BCH_med.loc[x.index, "tw"])
+f = {'PQS': {'weighted_mean' : wm}}
+TW = BCH_med.groupby(["hour","group"]).agg(f)
+TW.reset_index(level=0, inplace=True)
+TW.reset_index(level=0, inplace=True)
+TW= TW[["hour", "group", "PQS"]]
+TW = TW.rename(columns={"PQS":"TWPQS"})
+
 
 #############################################################################################################
 ###
 #############################################################################################################
-zuehduzehfzefoez
-
-
-
 
 
 
@@ -81,7 +122,7 @@ zuehduzehfzefoez
 # 	elif h==18 or h==19 or h==20:
 # 		g=21
 # 	elif h==21 or h==22 or h==23:
-# 		g=00		
+# 		g=24		
 # 	G[index] = g
 
 # BCH_med.insert(len(BCH_med.columns), 'group', G)
