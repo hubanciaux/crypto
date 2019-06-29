@@ -15,9 +15,22 @@ BCH_med.drop(labels = ["dir","PB01","PA01","QB01","QA01","midpoint"], axis = 1, 
 BCH_med.interval =  pd.to_datetime(BCH_med.interval, format='%Y/%m/%d %H:%M:%S')
 
 
-###########################################################################################################
-### Classify all intervals (for the year) into the 24*4 = 96 possible 15-min intervals of a day
-###########################################################################################################
+##############################################################################################################
+### PART	I		compute proxies for all 15-min intervals
+### PART	II		compute cross-same-intervals means and standard dev for the whole time series 
+### PART	III		standardize	proxies from part I with mean and std from part II 
+##############################################################################################################
+
+
+
+##############################################################################################################
+### PART I 
+##############################################################################################################
+
+# buil columns announcing the year, month, day, hout, minute of the medianazed
+Y = pd.DatetimeIndex(np.array(BCH_med.interval)).year
+M = pd.DatetimeIndex(np.array(BCH_med.interval)).month
+D = pd.DatetimeIndex(np.array(BCH_med.interval)).day
 H = pd.DatetimeIndex(np.array(BCH_med.interval)).hour
 T = pd.DatetimeIndex(np.array(BCH_med.interval)).minute
 G = np.zeros(T.shape)
@@ -35,69 +48,91 @@ for index, (t,g) in enumerate(zip(T,G)):
 
 BCH_med.insert(len(BCH_med.columns), 'group', G)
 BCH_med.insert(len(BCH_med.columns), 'hour', H)
+BCH_med.insert(len(BCH_med.columns), 'day', D)
+BCH_med.insert(len(BCH_med.columns), 'month', M)
+BCH_med.insert(len(BCH_med.columns), 'year', Y)
 
-
-###########################################################################################################
-###
-### Compute different averages of our proxys within these intervals:  Equally-Weighted (2 proxies)
-###		Size-Weighted (3 proxies) and Time-Weighted (1 proxy)
-###
-############################################################################################################
-# EQUALLY WEIGHTED (simple & standardized)
-#############################################################################################################
-
-#EW - simple
-EW =  BCH_med.groupby(["hour","group"]).mean()
+# compute Equally Weighted proxies (reintroduce groupby keys as index: hence 5 times same command)
+EW =  BCH_med.groupby(["year","month","day","hour","group"]).mean()
 EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
-EW= EW[["hour","group","PQS","DEPTH"]]
+EW.reset_index(level=0, inplace=True)
+EW.reset_index(level=0, inplace=True)
+EW.reset_index(level=0, inplace=True)
+EW= EW[["year","month","day","hour","group","PQS","DEPTH"]]
 EW = EW.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
 
-
-# #EW - standardized wrt to intra group MEAN and ST_DEV
-# # 1st : standardize
-# EW_stdz = BCH_med.groupby(["hour","group"]).transform(lambda x: (x - x.mean()) / x.std())
-# EW_stdz.insert(0, "hour", H)
-# EW_stdz.insert(1, "group", G)
-
-# EW_stdz = EW_stdz.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
-
-
-#############################################################################################################
-### SIZE WEIGHTED (simple & standardized) 
-#############################################################################################################
-
-# SW - simple
-# Define a lambda function to compute the weighted mean:
-wm = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
-f = {'PQS': {'weighted_mean' : wm}, 'PES': {'weighted_mean': wm}, 'PTS': {'weighted_mean': wm}}
-SW = BCH_med.groupby(["hour","group"]).agg(f)
+# compute Size Weighted proxies ...
+wm_d = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
+f = {'PQS': wm_d, 'PES': wm_d, 'PTS': wm_d}
+SW = BCH_med.groupby(["year","month","day","hour","group"]).agg(f)
 SW.reset_index(level=0, inplace=True)
 SW.reset_index(level=0, inplace=True)
-SW = SW[["hour", "group", "PQS", "PES", "PTS"]]
+SW.reset_index(level=0, inplace=True)
+SW.reset_index(level=0, inplace=True)
+SW.reset_index(level=0, inplace=True)
+SW = SW[["year","month","day","hour","group", "PQS", "PES", "PTS"]]
 SW = SW.rename(columns={"PQS":"SWPQS", "PES":"SWPES", "PTS":"SWPTS"})
 
-
-
-#############################################################################################################
-### TIME WEIGHTED (simple & standardized) 
-#############################################################################################################
-
-# TW - simple
+# TW 
 # Define a lambda function to compute the weighted mean:
-wm = lambda x: np.average(x, weights=BCH_med.loc[x.index, "tw"])
-f = {'PQS': {'weighted_mean' : wm}}
-TW = BCH_med.groupby(["hour","group"]).agg(f)
+wm_s = lambda x: np.average(x, weights=BCH_med.loc[x.index, "tw"])
+f = {'PQS': wm_s}
+TW = BCH_med.groupby(["year","month","day","hour","group"]).agg(f)
 TW.reset_index(level=0, inplace=True)
 TW.reset_index(level=0, inplace=True)
-TW= TW[["hour", "group", "PQS"]]
+TW.reset_index(level=0, inplace=True)
+TW.reset_index(level=0, inplace=True)
+TW.reset_index(level=0, inplace=True)
+TW= TW[["year","month","day","hour","group", "PQS"]]
 TW = TW.rename(columns={"PQS":"TWPQS"})
 
 
-#############################################################################################################
-###
-#############################################################################################################
+# merge everything
+WProx = pd.merge(EW, SW, how="left", on=["year","month","day","hour","group"]).merge(TW, how="left", on=["year","month","day","hour","group"])
 
+
+###########################################################################################################
+###	PART II:
+### Compute average and std of all our proxies over the whole period of the time series
+###
+############################################################################################################
+
+Mu_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS" ]].groupby(["hour","group"]).mean()
+Mu_df.reset_index(level=0, inplace=True)
+Mu_df.reset_index(level=0, inplace=True)
+Sigma_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS" ]].groupby(["hour","group"]).std()
+Sigma_df.reset_index(level=0, inplace=True)
+Sigma_df.reset_index(level=0, inplace=True)
+###########################################################################################################
+### 
+###		PART III	STANDARDIZATION
+###
+###########################################################################################################
+
+H = np.unique(WProx.hour)
+G = np.unique(WProx.group)
+P = ['EWPQS', 'EWDEPTH', 'SWPQS', 'SWPES', 'SWPTS', 'TWPQS']
+for h in H:
+	for g in G:
+		for p in P:
+			dimension = WProx.loc[(WProx.hour==h)&(WProx.group==g) ,p].shape[0]
+			mu_series = pd.Series(Mu_df.loc[(Mu_df.hour==h)&(Mu_df.group==g),p]).repeat(dimension)
+			sig_series = pd.Series(Sigma_df.loc[(Sigma_df.hour==h)&(Sigma_df.group==g),p]).repeat(dimension)
+			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] -= mu.values
+			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] /= sig.values
+
+
+# add a column, merging data info as a single datetime object
+WProx.rename(columns={'group':'minute'}, inplace=True)
+WProx["date"] = pd.to_datetime(WProx[['year', 'month', 'day', 'hour', 'minute']])
+# save it
+os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/stdized_prox")
+WProx.to_csv("stdized_prox", index=False)
+
+
+
+### ALTERNATIVE just in case ####
 
 
 # ###########################################################################################################
