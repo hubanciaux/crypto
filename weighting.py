@@ -35,14 +35,25 @@ H = pd.DatetimeIndex(np.array(BCH_med.interval)).hour
 T = pd.DatetimeIndex(np.array(BCH_med.interval)).minute
 G = np.zeros(T.shape)
 
+# for index, (t,g) in enumerate(zip(T,G)):
+# 	if t == 5 or t==10 or t==15:
+# 		g=15
+# 	elif t==20 or t==25 or t==30:
+# 		g=30
+# 	elif t==35 or t==40 or t==45:
+# 		g=45
+# 	elif t==50 or t==55 or t==00:
+# 		g=60
+# 	G[index] = g
+
 for index, (t,g) in enumerate(zip(T,G)):
-	if t == 5 or t==10 or t==15:
+	if t == 0 or t==5 or t==10:
 		g=15
-	elif t==20 or t==25 or t==30:
+	elif t==15 or t==20 or t==25:
 		g=30
-	elif t==35 or t==40 or t==45:
+	elif t==30 or t==35 or t==40:
 		g=45
-	elif t==50 or t==55 or t==00:
+	elif t==45 or t==50 or t==55:
 		g=60
 	G[index] = g
 
@@ -119,8 +130,8 @@ for h in H:
 			dimension = WProx.loc[(WProx.hour==h)&(WProx.group==g) ,p].shape[0]
 			mu_series = pd.Series(Mu_df.loc[(Mu_df.hour==h)&(Mu_df.group==g),p]).repeat(dimension)
 			sig_series = pd.Series(Sigma_df.loc[(Sigma_df.hour==h)&(Sigma_df.group==g),p]).repeat(dimension)
-			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] -= mu.values
-			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] /= sig.values
+			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] -= mu_series.values
+			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] /= sig_series.values
 
 
 # add a column, merging data info as a single datetime object
