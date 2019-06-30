@@ -9,7 +9,7 @@ import datetime as dt
 ###########################################################################################################
 
 os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/proxys")
-BCH_med = pd.read_csv("BCH_med_prox", sep=',')
+BCH_med = pd.read_csv("XRP_med_prox", sep=',')
 
 BCH_med.drop(labels = ["dir","PB01","PA01","QB01","QA01","midpoint"], axis = 1, inplace = True)
 BCH_med.interval =  pd.to_datetime(BCH_med.interval, format='%Y/%m/%d %H:%M:%S')
@@ -63,6 +63,15 @@ BCH_med.insert(len(BCH_med.columns), 'day', D)
 BCH_med.insert(len(BCH_med.columns), 'month', M)
 BCH_med.insert(len(BCH_med.columns), 'year', Y)
 
+
+# calculer les returns 
+# BCH_med["log_return_price"] = (np.log(BCH_med.price)).diff().fillna(0)
+# BCH_med["log_return_midpoint"] = (np.log(BCH_med.midpoint)).diff().fillna(0)
+
+BCH_med["return"] = np.exp((np.log(BCH_med.price)).diff().fillna(0))-1
+# BCH_med["simple_return_midpoint"] = np.exp(BCH_med.log_return_midpoint) -1
+
+
 # compute Equally Weighted proxies (reintroduce groupby keys as index: hence 5 times same command)
 EW =  BCH_med.groupby(["year","month","day","hour","group"]).mean()
 EW.reset_index(level=0, inplace=True)
@@ -70,8 +79,11 @@ EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
-EW= EW[["year","month","day","hour","group","PQS","DEPTH"]]
+# subset relevant features and include return as it is also taken as EW average
+EW= EW[["year","month","day","hour","group","PQS","DEPTH","return"]]
 EW = EW.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
+# compute 'concurrent change in volatility' : proxied by square returns, as in Chordia (2000)
+EW["V"]=np.power(EW["return"],2)
 
 # compute Size Weighted proxies ...
 wm_d = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
@@ -101,7 +113,9 @@ TW = TW.rename(columns={"PQS":"TWPQS"})
 
 # merge everything
 WProx = pd.merge(EW, SW, how="left", on=["year","month","day","hour","group"]).merge(TW, how="left", on=["year","month","day","hour","group"])
-
+# retirer la premiere observation comme toujours qd on fais une diff alors quand on n'a pas le premier element
+WProx= WProx.iloc[1:]
+WProx.reset_index(drop=True, inplace=True)
 
 ###########################################################################################################
 ###	PART II:
@@ -109,10 +123,10 @@ WProx = pd.merge(EW, SW, how="left", on=["year","month","day","hour","group"]).m
 ###
 ############################################################################################################
 
-Mu_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS" ]].groupby(["hour","group"]).mean()
+Mu_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS", "return", "V" ]].groupby(["hour","group"]).mean()
 Mu_df.reset_index(level=0, inplace=True)
 Mu_df.reset_index(level=0, inplace=True)
-Sigma_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS" ]].groupby(["hour","group"]).std()
+Sigma_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS", "return", "V" ]].groupby(["hour","group"]).std()
 Sigma_df.reset_index(level=0, inplace=True)
 Sigma_df.reset_index(level=0, inplace=True)
 ###########################################################################################################
@@ -123,7 +137,7 @@ Sigma_df.reset_index(level=0, inplace=True)
 
 H = np.unique(WProx.hour)
 G = np.unique(WProx.group)
-P = ['EWPQS', 'EWDEPTH', 'SWPQS', 'SWPES', 'SWPTS', 'TWPQS']
+P = ['EWPQS', 'EWDEPTH', 'SWPQS', 'SWPES', 'SWPTS', 'TWPQS', 'return', 'V']
 for h in H:
 	for g in G:
 		for p in P:
@@ -139,7 +153,7 @@ WProx.rename(columns={'group':'minute'}, inplace=True)
 WProx["date"] = pd.to_datetime(WProx[['year', 'month', 'day', 'hour', 'minute']])
 # save it
 os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/stdized_prox")
-WProx.to_csv("stdized_prox", index=False)
+WProx.to_csv("XRP_stdized_prox", index=False)
 
 
 
