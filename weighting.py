@@ -16,15 +16,13 @@ BCH_med.interval =  pd.to_datetime(BCH_med.interval, format='%Y/%m/%d %H:%M:%S')
 
 
 ##############################################################################################################
-### PART	I		compute proxies for all 15-min intervals
-### PART	II		compute cross-same-intervals means and standard dev for the whole time series 
-### PART	III		standardize	proxies from part I with mean and std from part II 
+### PART	I		 compute single proxies for all 15-min intervals and for all CCIES
+### PART 	II		 compute market wide proxies
 ##############################################################################################################
 
 
-
 ##############################################################################################################
-### PART I 
+### PART I 	
 ##############################################################################################################
 
 # buil columns announcing the year, month, day, hout, minute of the medianazed
@@ -64,16 +62,35 @@ BCH_med.insert(len(BCH_med.columns), 'month', M)
 BCH_med.insert(len(BCH_med.columns), 'year', Y)
 
 
-# calculer les returns 
-# BCH_med["log_return_price"] = (np.log(BCH_med.price)).diff().fillna(0)
-# BCH_med["log_return_midpoint"] = (np.log(BCH_med.midpoint)).diff().fillna(0)
+################################################################################################
+###     COMPUTE RETURN AND SQUARED RETURNS
+################################################################################################
+# yeas: 1 , no: 0
+inter_interval_returns = 1
+#intra_interval_returns = 1
 
-BCH_med["return"] = np.exp((np.log(BCH_med.price)).diff().fillna(0))-1
-# BCH_med["simple_return_midpoint"] = np.exp(BCH_med.log_return_midpoint) -1
 
 
 # compute Equally Weighted proxies (reintroduce groupby keys as index: hence 5 times same command)
-EW =  BCH_med.groupby(["year","month","day","hour","group"]).mean()
+# in the process we also compute the log return over these 15min intervals
+def ewAverage(x):
+	return sum(x)/len(x)
+
+def ret(x):
+	y = x[1:]
+	return sum(y)
+
+f = {'PQS':ewAverage, 'DEPTH':ewAverage, 'return':ret}
+
+# compute log returns over our base : 5 min intervals   
+if not inter_interval_returns:
+	BCH_med["return"] = (np.log(BCH_med.price)).diff()
+	EW =  BCH_med.groupby(["year","month","day","hour","group"]).agg(f)
+else:
+	EW =  BCH_med.groupby(["year","month","day","hour","group"]).mean()
+	EW["return"] = (np.log(EW.price)).diff()
+
+
 EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
@@ -81,9 +98,9 @@ EW.reset_index(level=0, inplace=True)
 EW.reset_index(level=0, inplace=True)
 # subset relevant features and include return as it is also taken as EW average
 EW= EW[["year","month","day","hour","group","PQS","DEPTH","return"]]
+EW["V"] = np.power(EW["return"],2)
 EW = EW.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
-# compute 'concurrent change in volatility' : proxied by square returns, as in Chordia (2000)
-EW["V"]=np.power(EW["return"],2)
+
 
 # compute Size Weighted proxies ...
 wm_d = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
@@ -113,46 +130,20 @@ TW = TW.rename(columns={"PQS":"TWPQS"})
 
 # merge everything
 WProx = pd.merge(EW, SW, how="left", on=["year","month","day","hour","group"]).merge(TW, how="left", on=["year","month","day","hour","group"])
+#WProx.rename(columns={'group':'minute'}, inplace=True)
+
+#WProx["date"] = pd.to_datetime(WProx[['year', 'month', 'day', 'hour', 'minute']])
+
+
 # retirer la premiere observation comme toujours qd on fais une diff alors quand on n'a pas le premier element
 WProx= WProx.iloc[1:]
 WProx.reset_index(drop=True, inplace=True)
 
-###########################################################################################################
-###	PART II:
-### Compute average and std of all our proxies over the whole period of the time series
-###
-############################################################################################################
 
-Mu_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS", "return", "V" ]].groupby(["hour","group"]).mean()
-Mu_df.reset_index(level=0, inplace=True)
-Mu_df.reset_index(level=0, inplace=True)
-Sigma_df = WProx[["hour", "group","EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS", "return", "V" ]].groupby(["hour","group"]).std()
-Sigma_df.reset_index(level=0, inplace=True)
-Sigma_df.reset_index(level=0, inplace=True)
-###########################################################################################################
-### 
-###		PART III	STANDARDIZATION
-###
-###########################################################################################################
-
-H = np.unique(WProx.hour)
-G = np.unique(WProx.group)
-P = ['EWPQS', 'EWDEPTH', 'SWPQS', 'SWPES', 'SWPTS', 'TWPQS', 'return', 'V']
-for h in H:
-	for g in G:
-		for p in P:
-			dimension = WProx.loc[(WProx.hour==h)&(WProx.group==g) ,p].shape[0]
-			mu_series = pd.Series(Mu_df.loc[(Mu_df.hour==h)&(Mu_df.group==g),p]).repeat(dimension)
-			sig_series = pd.Series(Sigma_df.loc[(Sigma_df.hour==h)&(Sigma_df.group==g),p]).repeat(dimension)
-			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] -= mu_series.values
-			WProx.loc[(WProx.hour==h)&(WProx.group==g),p] /= sig_series.values
-
-
-# add a column, merging data info as a single datetime object
 WProx.rename(columns={'group':'minute'}, inplace=True)
 WProx["date"] = pd.to_datetime(WProx[['year', 'month', 'day', 'hour', 'minute']])
 # save it
-os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/stdized_prox")
+os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/all_proxies")
 WProx.to_csv("XRP_stdized_prox", index=False)
 
 
@@ -192,4 +183,5 @@ WProx.to_csv("XRP_stdized_prox", index=False)
 # ###########################################################################################################
 
 # BCH_stdized = BCH_med.groupby("group").transform(lambda x: (x - x.mean()) / x.std())
+
 
