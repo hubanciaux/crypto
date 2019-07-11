@@ -11,11 +11,11 @@ import datetime as dt
 ###########################################################################################################
 #os.chdir("/home/hubert/Downloads/Data Cleaned/best")
 os.chdir("/home/hubert/data/Data Cleaned/best")
-BCH_ob_best = pd.read_csv("BCH_ob_best", sep=',')
+BCH_ob_best = pd.read_csv("XRP_ob_best", sep=',')
 
 #os.chdir("/home/hubert/Downloads/Data Cleaned/raw")
 os.chdir("/home/hubert/data/Data Cleaned/raw")
-BCH_trade = pd.read_csv("BCH_trade.csv", sep=',')
+BCH_trade = pd.read_csv("XRP_trade.csv", sep=',')
 
 
 # transfo colonne SELL en colonne DIR {-1 / +1}
@@ -91,12 +91,12 @@ BCH_trade = BCH_trade.loc[BCH_trade.corresp_OB_datetime!=np.datetime64(date_cass
 BCH_trade.reset_index(drop=True, inplace=True)
 # 2) We check whether the quote has changed through time and we compute the DURATION 
 # for this we use our previously computed delta times & use numpy for faster execution
-
 A = np.array(BCH_ob_best.PA01)
 B = np.array(BCH_ob_best.PB01)
 T = np.array(BCH_ob_best.datetime)
 D = np.array(BCH_ob_best.delta_time)
 TW = np.zeros(T.shape)
+MAX_DELTA_TIME = 60 # max 60 seconds between consecutive order book times
 
 for index, (a, b, t, d) in enumerate(zip(A, B, T, D)):
     if index == 0: 
@@ -105,7 +105,8 @@ for index, (a, b, t, d) in enumerate(zip(A, B, T, D)):
         tw = 0
         block_count = 0
     else:
-        if a != prev_PA or b != prev_PB or index == len(T) - 1:
+        if (a != prev_PA or b != prev_PB 
+            or index == len(T) - 1 or d > MAX_DELTA_TIME):
             if block_count > 1:
                 x = TW[index -1]
                 TW[index - block_count:index] = x
@@ -113,14 +114,15 @@ for index, (a, b, t, d) in enumerate(zip(A, B, T, D)):
             block_count = 0
             prev_PB = b
             prev_PA = a
-    tw += d
+    if d <= MAX_DELTA_TIME:
+        tw += d
+    else: # d > MAX_DELTA_TIME
+        tw = MAX_DELTA_TIME
     block_count += 1
     TW[index] = tw
 
 BCH_ob_best.insert(len(BCH_ob_best.columns), 'tw', TW)
 BCH_ob_best.drop(labels = ["delta_time"], axis = 1, inplace=True)
-
-
 
 #################################################################################################################
 ###  Calcul des proxys de liquidité EX ANTE
@@ -190,6 +192,5 @@ BCH_merged["interval"] = BCH_merged.corresp_OB_datetime.apply(FiveMinClassifier)
 # os.chdir("/home/hubert/Downloads/Data Cleaned/proxys")
 os.chdir("/home/hubert/data/Data Cleaned/proxys")
 BCH_medianized_proxys = BCH_merged.groupby(["interval"]).median()
-BCH_medianized_proxys.to_csv("BCH_med_prox", index=True)
-
+BCH_medianized_proxys.to_csv("XRP_med_prox", index=True)
 
