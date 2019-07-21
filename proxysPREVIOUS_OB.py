@@ -11,11 +11,11 @@ import datetime as dt
 ###########################################################################################################
 #os.chdir("/home/hubert/Downloads/Data Cleaned/best")
 os.chdir("/home/hubert/data/Data Cleaned/best")
-BCH_ob_best = pd.read_csv("XRP_ob_best", sep=',')
+BCH_ob_best = pd.read_csv("BCH_ob_best", sep=',')
 
 #os.chdir("/home/hubert/Downloads/Data Cleaned/raw")
 os.chdir("/home/hubert/data/Data Cleaned/raw")
-BCH_trade = pd.read_csv("XRP_trade.csv", sep=',')
+BCH_trade = pd.read_csv("BCH_trade.csv", sep=',')
 
 
 # transfo colonne SELL en colonne DIR {-1 / +1}
@@ -77,6 +77,7 @@ BCH_trade = BCH_trade.loc[BCH_trade.corresp_OB_datetime!=np.datetime64('1970-01-
 # 1) we start by computing the delta_times between each consecutive pair of quotes
 BCH_ob_best["delta_time"] = (BCH_ob_best.datetime.diff().fillna(0)).apply(pd.Timedelta.total_seconds)
 
+
 # la premiere obs devrait poser probleme (pcq on fait une diff du current - precedent)
 # donc nous  retirerons les rows correspondant à la premiere date de OB dans les deux dataframes
 # enregistrer la date qui pose probleme d abord
@@ -89,6 +90,13 @@ BCH_ob_best.reset_index(drop=True, inplace=True)
 # du coup retirer aussi les equivalents dans TRADES, en utilisant la date sauvegardée 'date_cassepied'
 BCH_trade = BCH_trade.loc[BCH_trade.corresp_OB_datetime!=np.datetime64(date_cassepied) , :]
 BCH_trade.reset_index(drop=True, inplace=True)
+
+# retirer tous les trades qui n'ont pas un corresp ob time inferieur ou egal à la minute
+L = list((BCH_ob_best.loc[BCH_ob_best.delta_time>60,"datetime"]))
+idx = BCH_trade.loc[BCH_trade.corresp_OB_datetime.isin(L)].index
+BCH_trade.drop(idx, inplace=True)
+BCH_trade.reset_index(drop=True, inplace=True)
+
 # 2) We check whether the quote has changed through time and we compute the DURATION 
 # for this we use our previously computed delta times & use numpy for faster execution
 A = np.array(BCH_ob_best.PA01)
@@ -167,12 +175,6 @@ BCH_merged["PTS"] = BCH_merged.PES / 2
 ###  BUNDLE data into 5 min intervals
 ##########################################################################################################
 
-# en observant la table nous constatons que pour chaque "corresp_OB_datetime"
-# nous avons au moins 1 trade !
-# voir resultat des deux lignes ci dessous:
- counter = BCH_merged.groupby(["corresp_OB_datetime"]).count()
- counter[counter.price<1]
-
 # donc si nous prenons des intervalles de 5 minutes nous aurons
 # au minimumm des intervalles avec 5 trades
 
@@ -185,12 +187,19 @@ def FiveMinClassifier(instant):
 
 # proceed to bundle by 5min
 # example: 00:05:00 interval will hold contain all trades from 00:00:00 up to 00:05:00
+
+
+# remove interval with less than 3 trades
 BCH_merged["interval"] = BCH_merged.corresp_OB_datetime.apply(FiveMinClassifier)
+a = pd.DataFrame(BCH_merged.groupby(["interval"]).count()["price"])
+a.reset_index(level=0, inplace=True)
+S = list(a[a.price<3].interval)
+BCH_merged = BCH_merged.loc[~BCH_merged.interval.isin(S)]
 
 
 
 # os.chdir("/home/hubert/Downloads/Data Cleaned/proxys")
 os.chdir("/home/hubert/data/Data Cleaned/proxys")
 BCH_medianized_proxys = BCH_merged.groupby(["interval"]).median()
-BCH_medianized_proxys.to_csv("XRP_med_prox", index=True)
+BCH_medianized_proxys.to_csv("BCH_med_prox", index=True)
 
