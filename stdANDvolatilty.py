@@ -46,7 +46,7 @@ vcrix.volatility = vcrix.volatility.cat.set_categories(new_categories=["L", "M",
 
 # Load all_proxies data
 os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/all_proxies")
-all_proxies = pd.read_csv("XRP_stdized_prox", sep=',')
+all_proxies = pd.read_csv("XRP_all_proxies", sep=',')
 
 # merge volatilty dataframe with our datframe of liquidity proxies
 vol_df = vcrix[["day","month","year","volatility"]]
@@ -54,8 +54,3 @@ proxies_and_vol = pd.merge(left =all_proxies , right =vol_df, how='left', on=["y
 os.chdir("/home/hubert/Downloads/Data Cleaned/final")
 proxies_and_vol.to_csv("XRP_finalVCRIX", index = False)
 
-
-
-
-# now we are able to observe the evolution of our proxies conditioned on the volatility of the day
-# see page 9 Petitjean, Giot, Beaupain and replicate the procedure
