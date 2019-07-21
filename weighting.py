@@ -9,9 +9,8 @@ import datetime as dt
 ###########################################################################################################
 
 os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/proxys")
-BCH_med = pd.read_csv("XRP_med_prox", sep=',')
+BCH_med = pd.read_csv("XRP_medmean", sep=',')
 
-BCH_med.drop(labels = ["dir","PB01","PA01","QB01","QA01","midpoint"], axis = 1, inplace = True)
 BCH_med.interval =  pd.to_datetime(BCH_med.interval, format='%Y/%m/%d %H:%M:%S')
 
 
@@ -103,8 +102,10 @@ EW = EW.rename(columns={"PQS":"EWPQS", "DEPTH":"EWDEPTH"})
 
 
 # compute Size Weighted proxies ...
-wm_d = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
-f = {'PQS': wm_d, 'PES': wm_d, 'PTS': wm_d}
+wm_pqs = lambda x: np.average(x, weights=BCH_med.loc[x.index, "DEPTH"])
+wm_pes = lambda x: np.average(x, weights=BCH_med.loc[x.index, "amount"])
+wm_pts = lambda x: np.average(x, weights=BCH_med.loc[x.index, "amount"])
+f = {'PQS': wm_pqs, 'PES': wm_pes, 'PTS': wm_pts}
 SW = BCH_med.groupby(["year","month","day","hour","group"]).agg(f)
 SW.reset_index(level=0, inplace=True)
 SW.reset_index(level=0, inplace=True)
@@ -144,7 +145,7 @@ WProx.rename(columns={'group':'minute'}, inplace=True)
 WProx["date"] = pd.to_datetime(WProx[['year', 'month', 'day', 'hour', 'minute']])
 # save it
 os.chdir("/home/hubert/Downloads/Data Cleaned/proxys/all_proxies")
-WProx.to_csv("XRP_stdized_prox", index=False)
+WProx.to_csv("XRP_all_proxies", index=False)
 
 
 
