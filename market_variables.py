@@ -98,31 +98,6 @@ for p in proxies:
     ETH["MKT_"+p] = complementaryMARKETproxy(p,"ETH")
     XRP["MKT_"+p] = complementaryMARKETproxy(p,"XRP")
 
-###################################################################################################################
-###     EXTEND -- 1-Lag, 1-Lead Proxies --
-####################################################################################################################
-
-
-for p in ["MKT_EWPQS", "MKT_EWDEPTH", "MKT_SWPQS", "MKT_SWPES", "MKT_SWPTS", "MKT_TWPQS", "MKT_return"]:
-    BCH[p+"_LAG"] = BCH[p].shift(periods = 1, axis = 0)
-    BTC[p+"_LAG"] = BTC[p].shift(periods = 1, axis = 0)
-    EOS[p+"_LAG"] = EOS[p].shift(periods = 1, axis = 0)
-    ETH[p+"_LAG"] = ETH[p].shift(periods = 1, axis = 0)
-    XRP[p+"_LAG"] = XRP[p].shift(periods = 1, axis = 0)
-
-    BCH[p+"_LEAD"] = BCH[p].shift(periods = -1, axis = 0)
-    BTC[p+"_LEAD"] = BTC[p].shift(periods = -1, axis = 0)
-    EOS[p+"_LEAD"] = EOS[p].shift(periods = -1, axis = 0)
-    ETH[p+"_LEAD"] = ETH[p].shift(periods = -1, axis = 0)
-    XRP[p+"_LEAD"] = XRP[p].shift(periods = -1, axis = 0)
-
-# remove first and last observation for each CCY
-BCH = BCH[1:-1]
-BTC = BTC[1:-1]
-EOS = EOS[1:-1]
-ETH = ETH[1:-1]
-XRP = XRP[1:-1]
-
 
 
 os.chdir("/home/hubert/Downloads/Data Cleaned/regressions")
@@ -132,3 +107,80 @@ EOS.to_csv("baseEOS", index = False)
 ETH.to_csv("baseETH", index = False)
 XRP.to_csv("baseXRP", index = False)
 
+
+###################################################################################################################
+###     EXTEND -- 1-Lag, 1-Lead Proxies --
+####################################################################################################################
+
+
+# for p in ["MKT_EWPQS", "MKT_EWDEPTH", "MKT_SWPQS", "MKT_SWPES", "MKT_SWPTS", "MKT_TWPQS", "MKT_return"]:
+#     BCH[p+"_LAG1"] = BCH[p].shift(periods = 1, axis = 0)
+#     BTC[p+"_LAG1"] = BTC[p].shift(periods = 1, axis = 0)
+#     EOS[p+"_LAG1"] = EOS[p].shift(periods = 1, axis = 0)
+#     ETH[p+"_LAG1"] = ETH[p].shift(periods = 1, axis = 0)
+#     XRP[p+"_LAG1"] = XRP[p].shift(periods = 1, axis = 0)
+
+#     BCH[p+"_LAG2"] = BCH[p].shift(periods = 2, axis = 0)
+#     BTC[p+"_LAG2"] = BTC[p].shift(periods = 2, axis = 0)
+#     EOS[p+"_LAG2"] = EOS[p].shift(periods = 2, axis = 0)
+#     ETH[p+"_LAG2"] = ETH[p].shift(periods = 2, axis = 0)
+#     XRP[p+"_LAG2"] = XRP[p].shift(periods = 2, axis = 0)
+
+#     BCH[p+"_LAG3"] = BCH[p].shift(periods = 3, axis = 0)
+#     BTC[p+"_LAG3"] = BTC[p].shift(periods = 3, axis = 0)
+#     EOS[p+"_LAG3"] = EOS[p].shift(periods = 3, axis = 0)
+#     ETH[p+"_LAG3"] = ETH[p].shift(periods = 3, axis = 0)
+#     XRP[p+"_LAG3"] = XRP[p].shift(periods = 3, axis = 0)
+
+#     BCH[p+"_LEAD1"] = BCH[p].shift(periods = -1, axis = 0)
+#     BTC[p+"_LEAD1"] = BTC[p].shift(periods = -1, axis = 0)
+#     EOS[p+"_LEAD1"] = EOS[p].shift(periods = -1, axis = 0)
+#     ETH[p+"_LEAD1"] = ETH[p].shift(periods = -1, axis = 0)
+#     XRP[p+"_LEAD1"] = XRP[p].shift(periods = -1, axis = 0)
+
+#     BCH[p+"_LEAD2"] = BCH[p].shift(periods = -2, axis = 0)
+#     BTC[p+"_LEAD2"] = BTC[p].shift(periods = -2, axis = 0)
+#     EOS[p+"_LEAD2"] = EOS[p].shift(periods = -2, axis = 0)
+#     ETH[p+"_LEAD2"] = ETH[p].shift(periods = -2, axis = 0)
+#     XRP[p+"_LEAD2"] = XRP[p].shift(periods = -2, axis = 0)
+
+#     BCH[p+"_LEAD3"] = BCH[p].shift(periods = -3, axis = 0)
+#     BTC[p+"_LEAD3"] = BTC[p].shift(periods = -3, axis = 0)
+#     EOS[p+"_LEAD3"] = EOS[p].shift(periods = -3, axis = 0)
+#     ETH[p+"_LEAD3"] = ETH[p].shift(periods = -3, axis = 0)
+#     XRP[p+"_LEAD3"] = XRP[p].shift(periods = -3, axis = 0)
+
+# # remove first and last observation for each CCY
+# # BCH = BCH[1:-1]
+# # BTC = BTC[1:-1]
+# # EOS = EOS[1:-1]
+# # ETH = ETH[1:-1]
+# # XRP = XRP[1:-1]
+
+# BCH = BCH[3:-3]
+# BTC = BTC[3:-3]
+# EOS = EOS[3:-3]
+# ETH = ETH[3:-3]
+# XRP = XRP[3:-5]
+
+# os.chdir("/home/hubert/Downloads/Data Cleaned/regressions")
+# BCH.to_csv("baseBCH", index = False)
+# BTC.to_csv("baseBTC", index = False)
+# EOS.to_csv("baseEOS", index = False)
+# ETH.to_csv("baseETH", index = False)
+# XRP.to_csv("baseXRP", index = False)
+import pandas as pd
+import numpy as np
+base = pd.DataFrame([[7,580,-63],[4,645,-24],[6,555,-44]], columns=["x","y","z"])
+
+
+def complementaryMARKETproxy( proxy_name , crypto_name):
+    C = {"BCH":BCH,"BTC":BTC,"EOS":EOS,"ETH":ETH,"XRP":XRP}
+    L = pd.Series(np.zeros(BCH.shape[0]))
+    for key, val in C.items():
+        if key!=crypto_name:
+            L += val[proxy_name]*val["w_idx"]   
+    return L        
+
+# extend original dataframes witth their corresponding MARKET WIDE proxies
+proxies = ["EWPQS", "EWDEPTH", "SWPQS", "SWPES", "SWPTS", "TWPQS","return"]
